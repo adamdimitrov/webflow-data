@@ -175,6 +175,32 @@ def parse_json_ld(html):
         
     return None
 
+def resolve_redirect(url):
+    """Resolve Travelpayouts affiliate links to their final Booking/Hostelworld destination."""
+    if "tp.media" in url:
+        match = re.search(r'[?&]u=([^&]+)', url)
+        if match:
+            import urllib.parse
+            return urllib.parse.unquote(match.group(1))
+            
+    if "tp.st" in url:
+        try:
+            result = subprocess.run(
+                ["curl", "-Ls", "-o", "/dev/null", "-w", "%{url_effective}", url],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                resolved = result.stdout.strip()
+                print(f"-> Resolved redirect: {url} -> {resolved}")
+                return resolved
+        except Exception as e:
+            print(f"-> Warning: Redirect resolution failed: {e}")
+            
+    return url
+
 def extract_links_from_page(page_url):
     """Scrape the Webflow page using urllib to discover all partner review links."""
     print(f"Discovering links from live page: {page_url}...")
@@ -190,7 +216,7 @@ def extract_links_from_page(page_url):
         return []
         
     # Find all anchor hrefs matching partners
-    pattern = re.compile(r'href=["\'](https?://[^"\']*(?:getyourguide\.com|viator\.com|tripadvisor\.(?:com|tp\.st))[^"\']*)["\']', re.IGNORECASE)
+    pattern = re.compile(r'href=["\'](https?://[^"\']*(?:getyourguide\.com|viator\.com|tripadvisor\.(?:com|tp\.st)|booking\.com|booking\.tp\.st|hostelworld\.com|hostelworld\.tp\.st|tp\.media)[^"\']*)["\']', re.IGNORECASE)
     found_urls = pattern.findall(html)
     
     # Clean URLs and filter for actual product pages (skip directories or widget frames)
@@ -204,11 +230,14 @@ def extract_links_from_page(page_url):
         # 1. GetYourGuide product pages must have the activity ID token '-t' followed by digits (e.g., -t12345)
         # 2. Viator product pages must contain '/tours/'
         # 3. TripAdvisor links (shortlinks or full links)
+        # 4. Booking.com & Hostelworld links or Travelpayouts redirect links
         is_gyg_product = 'getyourguide.com' in base and re.search(r'-t\d+', base)
         is_viator_product = 'viator.com/tours/' in base
-        is_ta_link = 'tripadvisor' in base or 'tp.st' in base
+        is_ta_link = 'tripadvisor' in base or 'tp.st' in base or 'booking.tp.st' in base or 'hostelworld.tp.st' in base or 'tp.media' in base
+        is_booking_link = 'booking.com' in base
+        is_hw_link = 'hostelworld.com' in base
         
-        if (is_gyg_product or is_viator_product or is_ta_link) and base not in seen:
+        if (is_gyg_product or is_viator_product or is_ta_link or is_booking_link or is_hw_link) and base not in seen:
             seen.add(base)
             unique_urls.append(cleaned)
             
@@ -221,7 +250,8 @@ def main():
         "https://www.budapestadventures.com/best-dinner-cruises-budapest",
         "https://www.budapestadventures.com/best-night-cruises-budapest",
         "https://www.budapestadventures.com/unlimited-prosecco-cruises-budapest",
-        "https://www.budapestadventures.com/best-private-boat-tours-budapest"
+        "https://www.budapestadventures.com/best-private-boat-tours-budapest",
+        "https://www.budapestadventures.com/best-hostels-budapest"
     ]
     
     partner_urls = []
@@ -241,8 +271,31 @@ def main():
     for i, raw_url in enumerate(partner_urls, 1):
         print(f"\n[{i}/{len(partner_urls)}] Processing: {raw_url}")
         
-        # Fetch page source via Safari to bypass WAF blocks
-        html = fetch_html_via_safari(raw_url)
+        # Resolve redirect first (e.g. Travelpayouts -> Booking/Hostelworld)
+        target_url = resolve_redirect(raw_url)
+        
+        # Try direct fetch first (10x faster)
+        html = None
+        try:
+            req = urllib.request.Request(
+                target_url,
+                headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                html_direct = response.read().decode('utf-8', errors='ignore')
+                if len(html_direct) > 20000:
+                    res_test = parse_json_ld(html_direct)
+                    if res_test:
+                        html = html_direct
+                        print("-> Retrieved page content directly (bypassed Safari).")
+        except Exception:
+            pass
+            
+        # Fall back to Safari if direct fetch failed or was blocked
+        if not html:
+            print("-> Direct fetch blocked/failed. Falling back to Safari...")
+            html = fetch_html_via_safari(target_url)
+            
         if not html:
             print(f"-> Skipping: Failed to load page in Safari.")
             continue
@@ -289,6 +342,9 @@ def main():
             # Map raw, clean, and resolved formats for 100% lookup match in Webflow JS
             ratings_db[raw_url] = result
             ratings_db[clean_url(raw_url)] = result
+            if target_url != raw_url:
+                ratings_db[target_url] = result
+                ratings_db[clean_url(target_url)] = result
         else:
             print("-> Warning: Could not find aggregateRating on this page.")
             
