@@ -1,4 +1,3 @@
-<script>
 (function() {
     // Hosted ratings.json path:
     const RATINGS_JSON_URL = "https://raw.githubusercontent.com/adamdimitrov/webflow-data/refs/heads/main/ratings.json";
@@ -264,4 +263,3 @@
         initRatingsSync();
     }
 })();
-</script>
