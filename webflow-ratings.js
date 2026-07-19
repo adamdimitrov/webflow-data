@@ -141,8 +141,8 @@
                     }
                 });
 
-                // 3. Process individual source review blocks (.reviews-3) inside this cruise row
-                const reviewsBlocks = row.querySelectorAll(".reviews-3");
+                // 3. Process individual source review blocks (.reviews-3 or .reviews) inside this cruise row
+                const reviewsBlocks = row.querySelectorAll(".reviews-3, .reviews");
                 reviewsBlocks.forEach((block) => {
                     const link = block.querySelector("a");
                     if (!link) return;
@@ -156,16 +156,26 @@
                         const parsedReviews = parseInt(data.reviews.replace(/[^0-9]/g, ""), 10);
 
                         if (!isNaN(parsedRating) && !isNaN(parsedReviews)) {
+                            // Check if the rating scale is out of 10 (Booking / Hostelworld) and normalize to 5 stars for cumulative weighting
+                            const isOutOf10 = rawUrl.includes("booking.com") || rawUrl.includes("hostelworld.com") || cleaned.includes("booking.com") || cleaned.includes("hostelworld.com");
+                            
                             cruiseRatingsList.push({
-                                rating: parsedRating,
+                                rating: isOutOf10 ? (parsedRating / 2) : parsedRating,
                                 reviews: parsedReviews
                             });
 
-                            // Update individual review count text (contains "+XXXX reviews")
+                            // Update individual review count and rating text
                             const spans = block.querySelectorAll("span");
                             spans.forEach((span) => {
-                                if (span.textContent.includes("reviews")) {
-                                    span.textContent = `+${parsedReviews.toLocaleString()} reviews `;
+                                const text = span.textContent;
+                                if (text.includes("reviews")) {
+                                    if (text.includes("/10")) {
+                                        // Booking/Hostelworld format: "8.8/10 +4900 reviews"
+                                        span.textContent = `${parsedRating.toFixed(1)}/10 +${parsedReviews.toLocaleString()} reviews `;
+                                    } else {
+                                        // Standard format: "+4900 reviews"
+                                        span.textContent = `+${parsedReviews.toLocaleString()} reviews `;
+                                    }
                                 }
                             });
 
