@@ -112,8 +112,14 @@
                 }
             }
 
-            // 2. Find all cumulative rating cells on the page
-            const ratingCells = document.querySelectorAll(".grid-cell-4");
+            // 2. Find all cumulative rating cells on the page (matching any grid-cell class containing .star-ratings-2)
+            const ratingCells = [];
+            document.querySelectorAll(".star-ratings-2").forEach(starEl => {
+                const cell = starEl.closest("[class*='grid-cell-']");
+                if (cell && !ratingCells.includes(cell)) {
+                    ratingCells.push(cell);
+                }
+            });
             let updatedRatingsCount = 0;
             let updatedPricesCount = 0;
 
