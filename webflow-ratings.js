@@ -112,9 +112,9 @@
                 }
             }
 
-            // 2. Find all cumulative rating cells on the page (matching any grid-cell class containing .star-ratings-2)
+            // 2. Find all cumulative rating cells on the page (matching any grid-cell class containing .star-ratings or .star-ratings-2)
             const ratingCells = [];
-            document.querySelectorAll(".star-ratings-2").forEach(starEl => {
+            document.querySelectorAll(".star-ratings, .star-ratings-2").forEach(starEl => {
                 const cell = starEl.closest("[class*='grid-cell-']");
                 if (cell && !ratingCells.includes(cell)) {
                     ratingCells.push(cell);
