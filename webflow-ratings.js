@@ -255,8 +255,20 @@
 
                 // 5. Update visual prices and duration for this cruise (if scraped successfully)
                 if (selectedPrice !== null) {
-                    // Update price in main comparison row (.price-2, .price-3, .price-4, .price-5, .price-7)
-                    const price3Container = row.querySelector(".price-2, .price-3, .price-4, .price-5, .price-7");
+                    // Update price in main comparison row dynamically by looking for the container with the € symbol
+                    // This permanently avoids issues with Webflow auto-generating .price-8, .price-9, etc.
+                    let price3Container = null;
+                    const priceCandidates = row.querySelectorAll('[class*="price-"]');
+                    priceCandidates.forEach(container => {
+                        if (container.textContent.includes('€') && !container.className.includes('copy')) {
+                            price3Container = container;
+                        }
+                    });
+                    
+                    // Fallback to strict selectors if the above fails
+                    if (!price3Container) {
+                        price3Container = row.querySelector(".price-2, .price-3, .price-4, .price-5, .price-7");
+                    }
                     if (price3Container) {
                         const priceSpan = price3Container.querySelector("span") || price3Container;
                         const strongTag = priceSpan.querySelector("strong") || priceSpan;
