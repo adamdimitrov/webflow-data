@@ -129,17 +129,6 @@
                 if (!row) return;
 
                 const cruiseRatingsList = [];
-                let selectedPrice = null;
-                let bestPricePriority = 999; // Lower value is higher priority (GYG = 1, Viator = 2, TA = 3)
-                let durationText = "";
-
-                // Extract duration from this cruise's feature blocks
-                const featureTexts = row.querySelectorAll(".feature-text");
-                featureTexts.forEach((el) => {
-                    if (el.textContent.includes("Duration:")) {
-                        durationText = formatDuration(el.textContent);
-                    }
-                });
 
                 // 3. Process individual source review blocks (.reviews-3 or .reviews) inside this cruise row
                 const reviewsBlocks = row.querySelectorAll(".reviews-3, .reviews");
@@ -189,16 +178,27 @@
                             updatedRatingsCount++;
                         }
 
-                        // Check and extract price based on priority (GYG -> Viator -> TA)
-                        if (data.price) {
-                            let priority = 3; // TripAdvisor
-                            if (rawUrl.includes("getyourguide.com")) priority = 1;
-                            else if (rawUrl.includes("viator.com")) priority = 2;
-
-                            if (priority < bestPricePriority) {
-                                bestPricePriority = priority;
-                                selectedPrice = data.price;
+                    } else {
+                        // No data in ratings.json — parse existing DOM values for accurate cumulative totals
+                        const spans = block.querySelectorAll("span");
+                        let existingReviews = 0;
+                        spans.forEach((span) => {
+                            const reviewMatch = span.textContent.match(/\+?([\d,]+)\s*reviews/);
+                            if (reviewMatch) {
+                                existingReviews = parseInt(reviewMatch[1].replace(/,/g, ""), 10);
                             }
+                        });
+                        const ratingContainer = block.querySelector(".price-2-copy");
+                        let existingRating = 0;
+                        if (ratingContainer) {
+                            existingRating = parseFloat((ratingContainer.querySelector("span") || ratingContainer).textContent) || 0;
+                        }
+                        if (existingReviews > 0 && existingRating > 0) {
+                            const isOutOf10 = rawUrl.includes("booking.com") || rawUrl.includes("hostelworld.com");
+                            cruiseRatingsList.push({
+                                rating: isOutOf10 ? (existingRating / 2) : existingRating,
+                                reviews: existingReviews
+                            });
                         }
                     }
                 });
@@ -230,40 +230,9 @@
                     }
                 }
 
-                // 5. Update visual prices and duration for this cruise (if scraped successfully)
-                if (selectedPrice !== null) {
-                    // Update price in main comparison row (.price-3)
-                    const price3Container = row.querySelector(".price-3");
-                    if (price3Container) {
-                        const priceSpan = price3Container.querySelector("span") || price3Container;
-                        const strongTag = priceSpan.querySelector("strong") || priceSpan;
-                        const oldText = strongTag.textContent;
-                        let newText = updatePriceText(oldText, selectedPrice);
-
-                        // Append duration if it isn't already present in the string
-                        if (durationText && !newText.includes("/")) {
-                            newText = `${newText} / ${durationText}`;
-                        }
-                        
-                        strongTag.textContent = newText;
-                    }
-
-                    // Update price in the detailed dropdown review title (.text-block-27)
-                    const detailsContainer = row.querySelector(".text-block-27");
-                    if (detailsContainer) {
-                        const priceSpans = detailsContainer.querySelectorAll(".text-span-7, .text-span-9");
-                        if (priceSpans.length > 0) {
-                            // If there are multiple prices (e.g. Legenda has Day & Evening), update the last one (Evening)
-                            const targetSpan = priceSpans[priceSpans.length - 1];
-                            const strongTag = targetSpan.querySelector("strong") || targetSpan;
-                            const oldText = strongTag.textContent;
-                            const newText = updatePriceText(oldText, selectedPrice);
-                            strongTag.textContent = newText;
-                        }
-                    }
-                    
-                    updatedPricesCount++;
-                }
+                // Note: Prices are NOT auto-updated. Scraped "from" prices from GYG/Viator
+                // are often promotional minimums that don't match actual ticket prices.
+                // Prices should be maintained manually in Webflow for accuracy.
             });
 
             console.log(`Sync complete! Updated ${updatedRatingsCount} ratings and ${updatedPricesCount} prices (with durations).`);
