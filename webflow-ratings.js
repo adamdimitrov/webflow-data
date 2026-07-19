@@ -141,8 +141,8 @@
                     }
                 });
 
-                // 3. Process individual source review blocks (.reviews-3 or .reviews) inside this cruise row
-                const reviewsBlocks = row.querySelectorAll(".reviews-3, .reviews");
+                // 3. Process individual source review blocks (.reviews, .reviews-3, .reviews-4, .reviews-5) inside this cruise row
+                const reviewsBlocks = row.querySelectorAll(".reviews, .reviews-3, .reviews-4, .reviews-5");
                 reviewsBlocks.forEach((block) => {
                     const link = block.querySelector("a");
                     if (!link) return;
