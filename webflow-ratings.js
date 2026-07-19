@@ -245,8 +245,19 @@
                         ratingSpan.textContent = weightedRating.toFixed(1);
                     }
 
-                    // Update cumulative review count in the main comparison row (.grid-cell-4 -> .price-6)
-                    const cumulativeReviewsContainer = gridCell4.querySelector(".price-6");
+                    // Update cumulative review count dynamically by looking for the word "reviews"
+                    let cumulativeReviewsContainer = null;
+                    const possibleReviewContainers = gridCell4.querySelectorAll('[class*="price-"]');
+                    possibleReviewContainers.forEach(container => {
+                        if (container.textContent.toLowerCase().includes('reviews')) {
+                            cumulativeReviewsContainer = container;
+                        }
+                    });
+                    
+                    // Fallback to strict selectors if the above fails
+                    if (!cumulativeReviewsContainer) {
+                        cumulativeReviewsContainer = gridCell4.querySelector(".price-5, .price-6");
+                    }
                     if (cumulativeReviewsContainer) {
                         const reviewsSpan = cumulativeReviewsContainer.querySelector("span") || cumulativeReviewsContainer;
                         reviewsSpan.textContent = `+${totalReviews.toLocaleString()} reviews`;
