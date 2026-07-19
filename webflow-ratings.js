@@ -71,7 +71,7 @@
     async function initRatingsSync() {
         console.log("Initializing Webflow Ratings, Price & Duration Sync...");
         try {
-            const response = await fetch(RATINGS_JSON_URL);
+            const response = await fetch(`${RATINGS_JSON_URL}?t=${new Date().getTime()}`);
             if (!response.ok) {
                 throw new Error(`Failed to load ratings.json: ${response.statusText}`);
             }
