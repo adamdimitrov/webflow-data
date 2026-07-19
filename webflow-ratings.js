@@ -255,8 +255,8 @@
 
                 // 5. Update visual prices and duration for this cruise (if scraped successfully)
                 if (selectedPrice !== null) {
-                    // Update price in main comparison row (.price-3)
-                    const price3Container = row.querySelector(".price-3");
+                    // Update price in main comparison row (.price-3, .price-4, .price-5, .price-7)
+                    const price3Container = row.querySelector(".price-3, .price-4, .price-5, .price-7");
                     if (price3Container) {
                         const priceSpan = price3Container.querySelector("span") || price3Container;
                         const strongTag = priceSpan.querySelector("strong") || priceSpan;
